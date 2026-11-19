@@ -1,0 +1,24 @@
+# Modelo: altere USUARIO e CAMINHO antes de instalar em /etc/systemd/system.
+[Unit]
+Description=Fechadura Digital (interface local)
+After=network.target
+
+[Service]
+Type=simple
+User=USUARIO
+WorkingDirectory=CAMINHO
+Environment=LOCK_RELAY_MODE=mock
+Environment=PYTHONUNBUFFERED=1
+ExecStart=CAMINHO/.venv/bin/python -m lockapp run
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.local/share/fechadura-digital
+SupplementaryGroups=video
+# Para hardware, adicione grupo GPIO, acesso ao chip e política de permissão testada.
+
+[Install]
+WantedBy=graphical.target
