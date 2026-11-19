@@ -14,8 +14,10 @@
     <a class="settings-button" href="{{ url_for('settings') }}" aria-label="Abrir configurações">Configurações</a>
     <div class="live-camera">
       <img src="{{ url_for('video') }}" alt="Imagem ao vivo da câmera" draggable="false">
+      <div class="camera-status-overlay">
+        <p id="live-status" class="recognition" role="status" aria-live="polite">Procurando rostos</p>
+      </div>
     </div>
-    <p id="live-status" class="recognition" role="status" aria-live="polite">Procurando rostos</p>
   </main>
 {% elif page == "login" %}
   <main class="card auth">
