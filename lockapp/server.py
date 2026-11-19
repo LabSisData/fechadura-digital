@@ -113,6 +113,26 @@ def create_app(store, vision):
                                events=store.recent_audit(),
                                snapshot=vision.snapshot())
 
+    @app.post("/change-password")
+    @admin_only
+    def change_password():
+        current = request.form.get("current_password", "")
+        new = request.form.get("new_password", "")
+        confirm = request.form.get("confirm_password", "")
+        if not store.verify_password(current):
+            flash("Senha atual incorreta.")
+        elif new != confirm:
+            flash("A confirmação não corresponde à nova senha.")
+        else:
+            try:
+                store.set_password(new)
+                session.clear()
+                flash("Senha alterada. Faça login novamente.")
+                return redirect(url_for("login"))
+            except ValueError as exc:
+                flash(str(exc))
+        return redirect(url_for("settings"))
+
     @app.post("/camera")
     @admin_only
     def camera():
