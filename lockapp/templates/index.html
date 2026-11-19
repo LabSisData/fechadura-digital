@@ -137,6 +137,23 @@
         <p class="muted small">Estes parâmetros não substituem prova de vivacidade nem autenticação adicional.</p>
       </section>
       <section class="card">
+        <h2>Senha administrativa</h2>
+        <p class="muted">Para alterar a senha, informe a atual e defina outra com pelo menos 12 caracteres.</p>
+        <form method="post" action="{{ url_for('change_password') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <label>Senha atual
+            <input type="password" name="current_password" autocomplete="current-password" required>
+          </label>
+          <label>Nova senha
+            <input type="password" name="new_password" minlength="12" maxlength="256" autocomplete="new-password" required>
+          </label>
+          <label>Confirme a nova senha
+            <input type="password" name="confirm_password" minlength="12" maxlength="256" autocomplete="new-password" required>
+          </label>
+          <button type="submit">Alterar senha</button>
+        </form>
+      </section>
+      <section class="card">
         <h2>Funcionamento</h2>
         <p>Relé: <strong>{{ "Simulação (sem acionamento)" if snapshot.relay_mode == "mock" else "GPIO real" }}</strong></p>
         <p class="muted">O acionamento físico exige configuração local do serviço. Sem câmera ou modelos, a fechadura não libera acesso.</p>
