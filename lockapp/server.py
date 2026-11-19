@@ -131,6 +131,22 @@ def create_app(store, vision):
             flash("Configuração inválida: " + str(exc))
         return redirect(url_for("settings"))
 
+    @app.post("/access")
+    @admin_only
+    def access():
+        try:
+            store.set_access({
+                "min_score": request.form["min_score"],
+                "confirm_frames": request.form["confirm_frames"],
+                "pulse_seconds": request.form["pulse_seconds"],
+                "cooldown_seconds": request.form["cooldown_seconds"],
+            })
+            store.audit("access_settings_changed")
+            flash("Parâmetros de reconhecimento salvos.")
+        except (ValueError, KeyError) as exc:
+            flash("Configuração inválida: " + str(exc))
+        return redirect(url_for("settings"))
+
     @app.post("/restart-camera")
     @admin_only
     def restart_camera():
