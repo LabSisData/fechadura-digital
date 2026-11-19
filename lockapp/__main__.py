@@ -37,8 +37,8 @@ def main():
 
     mode = os.getenv("LOCK_RELAY_MODE", "mock")
     chip = os.getenv("LOCK_GPIO_CHIP", "/dev/gpiochip1")
-    offset = int(os.getenv("LOCK_GPIO_OFFSET", "73"))
-    name = os.getenv("LOCK_GPIO_NAME", "PC9")
+    offset = int(os.getenv("LOCK_GPIO_OFFSET", "114"))
+    name = os.getenv("LOCK_GPIO_NAME", "PD18")
 
     if args.command == "relay-test" and mode != "gpio":
         parser.error("Configure LOCK_RELAY_MODE=gpio somente após conferir cabeamento")
