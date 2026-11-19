@@ -221,6 +221,13 @@ class WebTests(unittest.TestCase):
         self.assertTrue(self.store.verify_password("Outra Senha Forte 1"))
         self.assertEqual(self.client.get("/settings").status_code, 302)
 
+    def test_camera_status_is_inside_video_frame(self):
+        page = self.client.get("/").data.decode("utf-8")
+        self.assertRegex(
+            page,
+            r'(?s)<div class="live-camera">.*?<div class="camera-status-overlay">\s*<p id="live-status"'
+        )
+
     def test_loopback_main_and_csp(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
