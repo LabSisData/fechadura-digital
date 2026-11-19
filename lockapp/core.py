@@ -389,7 +389,9 @@ class Vision:
                         self._subject, self._count = None, 0
                         self.status = ("Procurando rostos" if len(faces) == 0
                                        else "Uma pessoa por vez")
-                        if now - self._last_face > 2:
+                        if len(faces) > 1:
+                            self._last_face = now
+                        if len(faces) == 0 and now - self._last_face > 2:
                             self._latched = False
                         if self.enroll and now > self.enroll["deadline"]:
                             self.enroll = None
