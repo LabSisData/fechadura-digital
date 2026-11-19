@@ -106,15 +106,15 @@ Configure o quiosque em um usuário dedicado sem acesso administrativo ao sistem
 
 ## 6. Conectar o relé — com testes físicos prévios
 
-**Pino escolhido:** pino físico **7** do header de 26 pinos, sinal **PC9**, nível lógico **3,3 V**. O pino físico **6** é GND. Para bancos Allwinner, PC9 corresponde ao offset **73** (banco C, 64 + 9), mas o número do chip Linux pode variar conforme imagem/kernel. **Não confie no exemplo de gpiochip1 sem verificar na sua placa.**
+**Pino escolhido:** pino físico **12** do header de 26 pinos, sinal **PD18**, nível lógico **3,3 V**. O pino físico **6** é GND. No controlador PIO Allwinner H6, PD18 corresponde ao offset **114** (banco D = 96 + 18), mas o número do chip Linux pode variar conforme imagem/kernel. **Não confie no exemplo de gpiochip1 sem verificar na sua placa.** A pinagem foi conferida no manual específico do **Orange Pi 3 LTS**. Não use tabelas de outros modelos de Orange Pi.
 
 ~~~bash
 gpioinfo | less
-gpioinfo | grep -i -C 3 PC9
+gpioinfo | grep -i -C 3 PD18
 ls -l /dev/gpiochip*
 ~~~
 
-Inspecione e confirme nome PC9, offset, chip correto e ausência de conflito de uso. O programa se recusa a acionar outra linha quando o nome exposto pelo kernel não corresponde a PC9. Este projeto usa libgpiod v2; não use números BCM ou wPi do wiringOP.
+Inspecione e confirme nome PD18, offset, chip correto e ausência de conflito de uso. O programa se recusa a acionar outra linha quando o nome exposto pelo kernel não corresponde a PD18. Este projeto usa libgpiod v2; não use números BCM ou wPi do wiringOP.
 
 Use **módulo de relé ou driver eletricamente compatível com entrada de 3,3 V e acionamento ativo em nível baixo**. Um pull-up físico externo deve manter o relé desligado no boot e quando o processo liberar o GPIO. A fonte do módulo/fechadura deve ser adequada e isolada; **não ligue bobina, solenóide ou tensão de rede diretamente ao pino do Orange Pi**. Confirme contatos COM/NO/NC e o comportamento da fechadura com profissional habilitado.
 
@@ -131,7 +131,7 @@ Após conferir com multímetro, faça o teste de 0,5 segundo **sem a fechadura r
 
 ~~~bash
 LOCK_RELAY_MODE=gpio LOCK_GPIO_CHIP=/dev/gpiochip1 \
-LOCK_GPIO_OFFSET=73 LOCK_GPIO_NAME=PC9 \
+LOCK_GPIO_OFFSET=114 LOCK_GPIO_NAME=PD18 \
 python -m lockapp relay-test
 ~~~
 
@@ -139,7 +139,7 @@ Só depois de validar com carga inofensiva e supervisão:
 
 ~~~bash
 LOCK_RELAY_MODE=gpio LOCK_GPIO_CHIP=/dev/gpiochip1 \
-LOCK_GPIO_OFFSET=73 LOCK_GPIO_NAME=PC9 \
+LOCK_GPIO_OFFSET=114 LOCK_GPIO_NAME=PD18 \
 python -m lockapp run
 ~~~
 
