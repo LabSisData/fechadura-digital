@@ -76,7 +76,7 @@ Abra no próprio Orange Pi, em um navegador:
 
 **http://127.0.0.1:8765**
 
-A tela principal é a câmera com o status abaixo dela. Clique em Configurações, insira a senha, ajuste os controles da câmera e clique em Salvar câmera ou Reiniciar câmera. Para cadastrar, escreva o nome e clique em Iniciar cadastro, com somente um rosto bem visível e iluminado diante da câmera por alguns segundos. O programa captura cinco amostras e registra um vetor facial criptografado. Após concluir, a identificação fica disponível imediatamente. Pessoas autorizadas podem ser bloqueadas, reautorizadas e excluídas.
+A tela principal é a câmera com o status abaixo dela. Clique em Configurações, insira a senha, ajuste os controles da câmera e clique em Salvar câmera ou Reiniciar câmera. Para cadastrar, escreva o nome e clique em Iniciar cadastro, com somente um rosto bem visível e iluminado diante da câmera por alguns segundos. O programa captura cinco amostras e registra um vetor facial criptografado. Após concluir, a identificação fica disponível imediatamente. Pessoas autorizadas podem ser bloqueadas, reautorizadas e excluídas. O painel também permite ajustar os parâmetros de confirmação, similaridade mínima, duração do pulso e intervalo entre liberações, além de trocar a senha exigindo a senha anterior.
 
 O reconhecimento é executado localmente em imagem de 320×240 para reduzir custo de CPU. O vídeo mostrado mantém a resolução de captura configurada. FPS e precisão dependem da câmera, luz e desempenho real do Orange Pi.
 
@@ -87,6 +87,22 @@ chromium --kiosk --no-first-run http://127.0.0.1:8765
 ~~~
 
 Em algumas distribuições, o comando será chromium-browser.
+
+Se o Orange Pi iniciar em **desktop gráfico com login automático já configurado**, pode iniciar o navegador em modo quiosque ao abrir a sessão gráfica. Exemplo para ambientes que respeitam XDG Autostart:
+
+~~~bash
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/fechadura-kiosk.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Fechadura Digital
+Exec=chromium --kiosk --no-first-run http://127.0.0.1:8765
+Terminal=false
+X-GNOME-Autostart-enabled=true
+EOF
+~~~
+
+Configure o quiosque em um usuário dedicado sem acesso administrativo ao sistema, desabilitando navegação não autorizada e protegendo o acesso físico ao terminal. O serviço Python é independente do navegador.
 
 ## 6. Conectar o relé — com testes físicos prévios
 
