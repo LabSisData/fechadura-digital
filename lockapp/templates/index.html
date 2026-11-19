@@ -116,6 +116,27 @@
         {% else %}<p class="muted">Nenhuma pessoa cadastrada.</p>{% endif %}
       </section>
       <section class="card">
+        <h2>Controle de acesso</h2>
+        <p class="muted">Valores conservadores. Ajuste somente após testar a câmera e avaliar erros de reconhecimento.</p>
+        <form method="post" action="{{ url_for('access') }}" class="form-grid">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <label>Similaridade mínima (0,55 a 0,85)
+            <input type="number" name="min_score" min="0.55" max="0.85" step="0.01" value="{{ config.access.min_score }}" required>
+          </label>
+          <label>Quadros de confirmação
+            <input type="number" name="confirm_frames" min="3" max="12" value="{{ config.access.confirm_frames }}" required>
+          </label>
+          <label>Pulso do relé (segundos)
+            <input type="number" name="pulse_seconds" min="0.5" max="3" step="0.1" value="{{ config.access.pulse_seconds }}" required>
+          </label>
+          <label>Intervalo mínimo (segundos)
+            <input type="number" name="cooldown_seconds" min="5" max="120" value="{{ config.access.cooldown_seconds }}" required>
+          </label>
+          <button type="submit">Salvar controle de acesso</button>
+        </form>
+        <p class="muted small">Estes parâmetros não substituem prova de vivacidade nem autenticação adicional.</p>
+      </section>
+      <section class="card">
         <h2>Funcionamento</h2>
         <p>Relé: <strong>{{ "Simulação (sem acionamento)" if snapshot.relay_mode == "mock" else "GPIO real" }}</strong></p>
         <p class="muted">O acionamento físico exige configuração local do serviço. Sem câmera ou modelos, a fechadura não libera acesso.</p>
