@@ -133,16 +133,35 @@ class Store:
             current["camera"] = camera
             self._set_meta("settings", json.dumps(current))
 
+    def set_access(self, values):
+        access = {
+            "min_score": float(values["min_score"]),
+            "confirm_frames": int(values["confirm_frames"]),
+            "pulse_seconds": float(values["pulse_seconds"]),
+            "cooldown_seconds": int(values["cooldown_seconds"]),
+        }
+        if not (0.55 <= access["min_score"] <= 0.85 and
+                3 <= access["confirm_frames"] <= 12 and
+                0.5 <= access["pulse_seconds"] <= 3.0 and
+                5 <= access["cooldown_seconds"] <= 120):
+            raise ValueError("Limites de segurança inválidos")
+        with self.lock, self.db:
+            current = self.settings()
+            current["access"] = access
+            self._set_meta("settings", json.dumps(current))
+
     def list_people(self):
         with self.lock:
             rows = self.db.execute(
                 "SELECT id, name, enabled, created_at FROM persons ORDER BY name").fetchall()
         return [dict(row) for row in rows]
 
-    def templates(self):
+    def templates(self, include_disabled=False):
         with self.lock:
-            rows = self.db.execute(
-                "SELECT id, name, embedding FROM persons WHERE enabled=1").fetchall()
+            query = "SELECT id, name, embedding FROM persons"
+            if not include_disabled:
+                query += " WHERE enabled=1"
+            rows = self.db.execute(query).fetchall()
             return [(row["id"], row["name"],
                      normalized(json.loads(self.fernet.decrypt(row["embedding"]).decode())))
                     for row in rows]
@@ -192,6 +211,7 @@ class Relay:
         self.lock = threading.RLock()
         self.request = None
         self.until = 0.0
+        self._timer = None
         self.offset = int(offset)
         self.mode = mode
         if mode == "mock":
@@ -224,6 +244,10 @@ class Relay:
             else:
                 LOG.warning("SIMULAÇÃO de abertura por %.2f segundos", seconds)
             self.until = time.monotonic() + float(seconds)
+            # Independente do loop da câmera (que pode ficar bloqueado em read()).
+            self._timer = threading.Timer(float(seconds), self.off)
+            self._timer.daemon = True
+            self._timer.start()
 
     def tick(self):
         with self.lock:
@@ -238,6 +262,9 @@ class Relay:
 
     def close(self):
         with self.lock:
+            if self._timer:
+                self._timer.cancel()
+                self._timer = None
             try:
                 self.off()
             finally:
@@ -268,8 +295,10 @@ class Vision:
 
     def refresh(self):
         templates = self.store.templates()
+        all_templates = self.store.templates(include_disabled=True)
         with self.mu:
             self.templates = templates
+            self.all_templates = all_templates
             self._subject = None
             self._count = 0
 
@@ -306,13 +335,13 @@ class Vision:
             return self.jpeg
 
     def _run(self):
-        cv2.setNumThreads(1)
-        detector = cv2.FaceDetectorYN.create(
-            str(self.model_dir / MODEL_FILES[0]), "", (320, 240), 0.9, 0.3, 5)
-        recognizer = cv2.FaceRecognizerSF.create(str(self.model_dir / MODEL_FILES[1]), "")
         cap = None
         last_open_attempt = 0
         try:
+            cv2.setNumThreads(1)
+            detector = cv2.FaceDetectorYN.create(
+                str(self.model_dir / MODEL_FILES[0]), "", (320, 240), 0.9, 0.3, 5)
+            recognizer = cv2.FaceRecognizerSF.create(str(self.model_dir / MODEL_FILES[1]), "")
             while not self.stop.is_set():
                 self.relay.tick()
                 settings = self.store.settings()
@@ -410,7 +439,7 @@ class Vision:
                 return
             if now < req["next"]:
                 return
-            for _, _, known in self.templates:
+            for _, _, known in self.all_templates:
                 if float(np.dot(vector, known)) >= threshold:
                     self.enroll = None
                     self.enroll_result = "Rosto já pertence a outra pessoa cadastrada"
@@ -447,7 +476,8 @@ class Vision:
                 self._subject, self._count = ident, 0
             self._count += 1
             self.status = "Identificando " + name if self._count < access["confirm_frames"] else (
-                "Acesso permitido: " + name)
+                ("Identidade autorizada (simulação): " if self.relay.mode == "mock"
+                 else "Acesso permitido: ") + name)
             if (self._count >= access["confirm_frames"] and not self._latched
                     and now - self._last_unlock >= access["cooldown_seconds"]
                     and self.enroll is None):
@@ -457,7 +487,8 @@ class Vision:
                     self.status = "Permissão revogada"
                     return
                 self.relay.pulse(access["pulse_seconds"])
-                self.store.audit("access_granted", ident)
+                self.store.audit(
+                    "access_granted" if self.relay.mode == "gpio" else "access_simulated", ident)
                 self._last_unlock = now
                 self._latched = True
 
