@@ -207,7 +207,7 @@ class Store:
 
 class Relay:
     """Nunca energiza no início. GPIO real somente por opção explícita no ambiente."""
-    def __init__(self, mode="mock", chip="/dev/gpiochip1", offset=73, expected_name="PC9"):
+    def __init__(self, mode="mock", chip="/dev/gpiochip1", offset=114, expected_name="PD18"):
         self.lock = threading.RLock()
         self.request = None
         self.until = 0.0
