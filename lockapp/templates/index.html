@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Fechadura Digital</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body data-page="{{ page }}">
+{% if page == "home" %}
+  <main class="kiosk">
+    <a class="settings-button" href="{{ url_for('settings') }}" aria-label="Abrir configurações">Configurações</a>
+    <div class="live-camera">
+      <img src="{{ url_for('video') }}" alt="Imagem ao vivo da câmera" draggable="false">
+    </div>
+    <p id="live-status" class="recognition" role="status" aria-live="polite">Procurando rostos</p>
+  </main>
+{% elif page == "login" %}
+  <main class="card auth">
+    <h1>Configurações</h1>
+    <p class="muted">Acesso administrativo local</p>
+    {% with messages = get_flashed_messages() %}
+      {% for message in messages %}<p class="message" role="alert">{{ message }}</p>{% endfor %}
+    {% endwith %}
+    <form method="post" action="{{ url_for('login') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+      <label for="password">Senha</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+      <button type="submit">Entrar</button>
+    </form>
+    <a href="{{ url_for('home') }}">Voltar para câmera</a>
+  </main>
+{% else %}
+  <main class="dashboard">
+    <header class="topbar">
+      <div><h1>Configurações</h1><p class="muted">Administração da fechadura digital</p></div>
+      <div class="top-actions">
+        <a class="secondary-button" href="{{ url_for('home') }}">Voltar</a>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button type="submit" class="secondary-button">Sair</button>
+        </form>
+      </div>
+    </header>
+    {% with messages = get_flashed_messages() %}
+      {% for message in messages %}<p class="message" role="status">{{ message }}</p>{% endfor %}
+    {% endwith %}
+    <div class="settings-grid">
+      <section class="card">
+        <h2>Câmera</h2>
+        <div class="preview"><img src="{{ url_for('video') }}" alt="Prévia da câmera"></div>
+        <p id="live-status" class="muted" aria-live="polite">{{ snapshot.status }}</p>
+        <form method="post" action="{{ url_for('camera') }}" class="form-grid">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <label>Dispositivo /dev/video*
+            <input name="device" type="number" min="0" max="9" value="{{ config.camera.device }}" required>
+          </label>
+          <label>Largura (pixels)
+            <select name="width">
+              {% for value in [320,640,800,1280] %}
+              <option value="{{ value }}" {% if config.camera.width == value %}selected{% endif %}>{{ value }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Altura (pixels)
+            <select name="height">
+              {% for value in [240,480,600,720] %}
+              <option value="{{ value }}" {% if config.camera.height == value %}selected{% endif %}>{{ value }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>FPS (1–25)
+            <input name="fps" type="number" min="1" max="25" value="{{ config.camera.fps }}" required>
+          </label>
+          <label class="check"><input type="checkbox" name="flip" {% if config.camera.flip %}checked{% endif %}> Espelhar imagem</label>
+          <button type="submit">Salvar câmera</button>
+        </form>
+        <form method="post" action="{{ url_for('restart_camera') }}" class="spaced">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <button type="submit" class="secondary-button">Reiniciar câmera</button>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Cadastrar pessoa</h2>
+        <p class="muted">Uma pessoa por vez, olhando para a câmera. Cinco amostras são capturadas automaticamente, sem armazenar fotografias.</p>
+        <form method="post" action="{{ url_for('enroll') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <label for="name">Nome completo ou identificador</label>
+          <input id="name" name="name" minlength="2" maxlength="70" autocomplete="off" required>
+          <button type="submit">Iniciar cadastro</button>
+        </form>
+        <p id="enroll-status" class="message" role="status" aria-live="polite">{{ snapshot.enrollment_result }}</p>
+        <p class="muted small">Obtenha consentimento e informe a finalidade antes de coletar dados biométricos.</p>
+      </section>
+      <section class="card">
+        <h2>Pessoas autorizadas</h2>
+        {% if people %}
+          <div class="people">
+          {% for person in people %}
+            <div class="person">
+              <div><strong>{{ person.name }}</strong><span class="muted small">{{ "Autorizada" if person.enabled else "Bloqueada" }}</span></div>
+              <form method="post" action="{{ url_for('permission', person_id=person.id) }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="enabled" value="{{ '0' if person.enabled else '1' }}">
+                <button type="submit" class="secondary-button">{{ "Bloquear" if person.enabled else "Autorizar" }}</button>
+              </form>
+              <form method="post" action="{{ url_for('delete', person_id=person.id) }}" data-confirm="Excluir cadastro e biometria desta pessoa?">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <button type="submit" class="danger-button">Excluir</button>
+              </form>
+            </div>
+          {% endfor %}
+          </div>
+        {% else %}<p class="muted">Nenhuma pessoa cadastrada.</p>{% endif %}
+      </section>
+      <section class="card">
+        <h2>Controle de acesso</h2>
+        <p class="muted">Valores conservadores. Ajuste somente após testar a câmera e avaliar erros de reconhecimento.</p>
+        <form method="post" action="{{ url_for('access') }}" class="form-grid">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <label>Similaridade mínima (0,55 a 0,85)
+            <input type="number" name="min_score" min="0.55" max="0.85" step="0.01" value="{{ config.access.min_score }}" required>
+          </label>
+          <label>Quadros de confirmação
+            <input type="number" name="confirm_frames" min="3" max="12" value="{{ config.access.confirm_frames }}" required>
+          </label>
+          <label>Pulso do relé (segundos)
+            <input type="number" name="pulse_seconds" min="0.5" max="3" step="0.1" value="{{ config.access.pulse_seconds }}" required>
+          </label>
+          <label>Intervalo mínimo (segundos)
+            <input type="number" name="cooldown_seconds" min="5" max="120" value="{{ config.access.cooldown_seconds }}" required>
+          </label>
+          <button type="submit">Salvar controle de acesso</button>
+        </form>
+        <p class="muted small">Estes parâmetros não substituem prova de vivacidade nem autenticação adicional.</p>
+      </section>
+      <section class="card">
+        <h2>Senha administrativa</h2>
+        <p class="muted">Para alterar a senha, informe a atual e defina outra com pelo menos 12 caracteres.</p>
+        <form method="post" action="{{ url_for('change_password') }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+          <label>Senha atual
+            <input type="password" name="current_password" autocomplete="current-password" required>
+          </label>
+          <label>Nova senha
+            <input type="password" name="new_password" minlength="12" maxlength="256" autocomplete="new-password" required>
+          </label>
+          <label>Confirme a nova senha
+            <input type="password" name="confirm_password" minlength="12" maxlength="256" autocomplete="new-password" required>
+          </label>
+          <button type="submit">Alterar senha</button>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Funcionamento</h2>
+        <p>Relé: <strong>{{ "Simulação (sem acionamento)" if snapshot.relay_mode == "mock" else "GPIO real" }}</strong></p>
+        <p class="muted">O acionamento físico exige configuração local do serviço. Sem câmera ou modelos, a fechadura não libera acesso.</p>
+        <h3>Eventos recentes (7 dias)</h3>
+        {% if events %}
+          <ul class="events">
+          {% for event in events %}
+            <li><time data-timestamp="{{ event.at }}">{{ event.at }}</time> — {{ event.event }}</li>
+          {% endfor %}
+          </ul>
+        {% else %}<p class="muted">Nenhum evento registrado.</p>{% endif %}
+      </section>
+    </div>
+  </main>
+{% endif %}
+</body>
+</html>
