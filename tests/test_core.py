@@ -202,6 +202,25 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.client.get("/settings").status_code, 200)
         self.assertEqual(self.client.post("/restart-camera", data={"_csrf": "errado"}).status_code, 403)
 
+    def test_admin_changes_password_only_with_current_password(self):
+        self.client.get("/login")
+        with self.client.session_transaction() as sess:
+            token = sess["csrf"]
+        self.client.post("/login", data={"password": "Senha Segura 12345", "_csrf": token})
+        with self.client.session_transaction() as sess:
+            token = sess["csrf"]
+        invalid = self.client.post("/change-password", data={
+            "_csrf": token, "current_password": "senha-errada",
+            "new_password": "Outra Senha Forte 1", "confirm_password": "Outra Senha Forte 1"})
+        self.assertEqual(invalid.status_code, 302)
+        self.assertFalse(self.store.verify_password("Outra Senha Forte 1"))
+        valid = self.client.post("/change-password", data={
+            "_csrf": token, "current_password": "Senha Segura 12345",
+            "new_password": "Outra Senha Forte 1", "confirm_password": "Outra Senha Forte 1"})
+        self.assertEqual(valid.status_code, 302)
+        self.assertTrue(self.store.verify_password("Outra Senha Forte 1"))
+        self.assertEqual(self.client.get("/settings").status_code, 302)
+
     def test_loopback_main_and_csp(self):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
