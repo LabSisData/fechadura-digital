@@ -3,6 +3,10 @@ import os
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
+import types
+import sys
+import time
 
 import numpy as np
 
@@ -57,6 +61,14 @@ class StoreTests(unittest.TestCase):
             self.store.set_camera(dict(device=0, width=999, height=480, fps=12, flip=False))
         self.assertEqual(self.store.settings()["camera"]["width"], 640)
 
+    def test_access_parameters_are_bounded(self):
+        values = dict(min_score=0.67, confirm_frames=6,
+                      pulse_seconds=1.0, cooldown_seconds=22)
+        self.store.set_access(values)
+        self.assertEqual(self.store.settings()["access"], values)
+        with self.assertRaises(ValueError):
+            self.store.set_access(dict(values, min_score=0.2))
+
     def test_data_directory_not_world_readable(self):
         mode = os.stat(self.temp.name).st_mode & 0o777
         self.assertEqual(mode, 0o700)
@@ -93,6 +105,55 @@ class VisionTests(unittest.TestCase):
         self.vision._recognize(vector(1), 10, self.store.settings()["access"])
         self.assertEqual(self.vision.snapshot()["status"], "Rosto não autorizado")
         self.assertEqual(self.relay.until, 0)
+
+
+class GpioContractTests(unittest.TestCase):
+    def test_physical_gpio_name_checked_and_released(self):
+        states = []
+        lines = types.ModuleType("gpiod.line")
+        lines.Direction = types.SimpleNamespace(OUTPUT="out")
+        lines.Value = types.SimpleNamespace(ACTIVE="on", INACTIVE="off")
+        fake = types.ModuleType("gpiod")
+        names = ["PC9"]
+
+        class Chip:
+            def __init__(self, path):
+                self.path = path
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+            def get_line_info(self, offset):
+                self.offset = offset
+                return types.SimpleNamespace(name=names[0])
+
+        class Request:
+            def set_value(self, offset, value):
+                states.append((offset, value))
+
+            def release(self):
+                states.append(("released", True))
+
+        fake.Chip = Chip
+        fake.LineSettings = lambda **kwargs: kwargs
+        fake.request_lines = lambda *args, **kwargs: Request()
+        with patch.dict(sys.modules, {"gpiod": fake, "gpiod.line": lines}):
+            names[0] = "PC8"
+            with self.assertRaises(RuntimeError):
+                Relay("gpio", "/dev/gpiochip1", 73, "PC9")
+            names[0] = "PC9"
+            relay = Relay("gpio", "/dev/gpiochip1", 73, "PC9")
+            try:
+                relay.pulse(0.02)
+                self.assertIn((73, "on"), states)
+                time.sleep(0.08)
+                self.assertIn((73, "off"), states)
+            finally:
+                relay.close()
+            self.assertIn(("released", True), states)
 
 
 class DummyVision:
