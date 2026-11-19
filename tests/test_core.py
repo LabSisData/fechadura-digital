@@ -114,7 +114,7 @@ class GpioContractTests(unittest.TestCase):
         lines.Direction = types.SimpleNamespace(OUTPUT="out")
         lines.Value = types.SimpleNamespace(ACTIVE="on", INACTIVE="off")
         fake = types.ModuleType("gpiod")
-        names = ["PC9"]
+        names = ["PD18"]
 
         class Chip:
             def __init__(self, path):
@@ -141,16 +141,16 @@ class GpioContractTests(unittest.TestCase):
         fake.LineSettings = lambda **kwargs: kwargs
         fake.request_lines = lambda *args, **kwargs: Request()
         with patch.dict(sys.modules, {"gpiod": fake, "gpiod.line": lines}):
-            names[0] = "PC8"
+            names[0] = "PD17"
             with self.assertRaises(RuntimeError):
-                Relay("gpio", "/dev/gpiochip1", 73, "PC9")
-            names[0] = "PC9"
-            relay = Relay("gpio", "/dev/gpiochip1", 73, "PC9")
+                Relay("gpio", "/dev/gpiochip1", 114, "PD18")
+            names[0] = "PD18"
+            relay = Relay("gpio", "/dev/gpiochip1", 114, "PD18")
             try:
                 relay.pulse(0.02)
-                self.assertIn((73, "on"), states)
+                self.assertIn((114, "on"), states)
                 time.sleep(0.08)
-                self.assertIn((73, "off"), states)
+                self.assertIn((114, "off"), states)
             finally:
                 relay.close()
             self.assertIn(("released", True), states)
